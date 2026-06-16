@@ -1,0 +1,37 @@
+{
+  "streams": [
+    {
+      "name": "cam1",
+      "url": "rtsp://127.0.0.1:8554/cam1"
+    },
+    {
+      "name": "cam2",
+      "url": "rtsp://127.0.0.1:8554/cam2"
+    },
+    {
+      "name": "cam3",
+      "url": "rtsp://127.0.0.1:8554/cam3"
+    }
+  ],
+  "yolo": {
+    "model_path": "/home/lee-server/yolov8/yolo26n.pt",
+    "imgsz": 640,
+    "conf": 0.25
+  },
+  "trigger": {
+    "target_class": "person",
+    "person_conf": 0.60,
+    "cooldown_seconds": 10,
+    "max_events_per_run": 3
+  },
+  "qwen": {
+    "llama_cli": "/home/lee-server/llama.cpp/build/bin/llama-cli",
+    "model_path": "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/Qwen3VL-2B-Instruct-Q4_K_M.gguf",
+    "mmproj_path": "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/mmproj-Qwen3VL-2B-Instruct-F16.gguf",
+    "prompt": "请根据图片内容进行安全场景分析。重点说明画面中是否有人、车辆、设备或潜在风险，并结合检测结果给出简短判断。"
+  },
+  "outputs": {
+    "keyframe_dir": "/home/lee-server/vlm-yolo-rtsp-system/outputs/keyframes",
+    "event_log_dir": "/home/lee-server/vlm-yolo-rtsp-system/outputs/event_logs"
+  }
+}
