@@ -7,6 +7,7 @@ import argparse
 import subprocess
 from datetime import datetime
 from ultralytics import YOLO
+from enhance_event_json import enhance_one_event
 
 
 def load_config(config_path):
@@ -303,7 +304,13 @@ def main():
 
                 event_json_path = save_event_json(event_json_dir, event_data)
 
-                print(f"[JSON事件日志] {event_json_path}")
+                try:
+                    enhance_one_event(event_json_path)
+                    print(f"[JSON事件日志] {event_json_path}")
+                    print("[JSON增强] 已写入 qwen_summary / risk_reason / recommended_action")
+                except Exception as e:
+                    print(f"[JSON增强警告] {e}")
+                    print(f"[JSON事件日志] {event_json_path}")
 
                 if total_events >= max_events:
                     print("[停止] 已达到最大事件数")
