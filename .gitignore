@@ -1,0 +1,41 @@
+# Large model files
+*.gguf
+*.pt
+*.onnx
+*.engine
+*.bin
+*.safetensors
+
+# Build files
+build/
+bin/
+obj/
+CMakeFiles/
+CMakeCache.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs and outputs
+*.log
+nohup.out
+runs/
+outputs/
+*.mp4
+*.avi
+*.mkv
+*.jpg
+*.png
+
+# Secrets
+.env
+*.key
+id_rsa
+id_ed25519
+*.pem
+
+# System
+.DS_Store
