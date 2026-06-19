@@ -1,0 +1,23 @@
+services:
+  mediamtx:
+    image: local/mediamtx:1.18.2
+    container_name: mediamtx
+    network_mode: host
+    restart: unless-stopped
+
+  yolo-event:
+    image: vlm-yolo-collab:0.1
+    container_name: vlm-yolo-event
+    network_mode: host
+    working_dir: /home/lee-server/vlm-yolo-rtsp-system
+    environment:
+      YOLO_CONFIG_DIR: /tmp/Ultralytics
+      OPENCV_FFMPEG_CAPTURE_OPTIONS: rtsp_transport;tcp
+    volumes:
+      - /home/lee-server/vlm-yolo-rtsp-system:/home/lee-server/vlm-yolo-rtsp-system
+      - /home/lee-server/yolov8:/home/lee-server/yolov8
+      - /home/lee-server/llama.cpp:/home/lee-server/llama.cpp
+      - /home/lee-server/.cache/modelscope:/home/lee-server/.cache/modelscope
+    command: bash -lc "python scripts/yolo_qwen_event_json_demo.py"
+    profiles:
+      - event
