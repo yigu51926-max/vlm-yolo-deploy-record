@@ -41,7 +41,7 @@ def main():
         help="多路RTSP地址"
     )
     parser.add_argument("--model", default="/home/lee-server/yolov8/yolo26n.pt")
-    parser.add_argument("--output-dir", default="/home/lee-server/multi_yolo_outputs")
+    parser.add_argument("--output-dir", default="/home/lee-server/vlm-yolo-rtsp-system/outputs/docker_multi_rtsp")
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--max-frames", type=int, default=300)

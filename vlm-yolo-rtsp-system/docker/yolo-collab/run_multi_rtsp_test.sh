@@ -3,7 +3,7 @@ set -e
 
 PROJECT_DIR="/home/lee-server/vlm-yolo-rtsp-system"
 YOLO_DIR="/home/lee-server/yolov8"
-MULTI_OUTPUT_DIR="/home/lee-server/multi_yolo_outputs"
+MULTI_OUTPUT_DIR="/home/lee-server/vlm-yolo-rtsp-system/outputs/docker_multi_rtsp"
 
 mkdir -p ${MULTI_OUTPUT_DIR}
 
