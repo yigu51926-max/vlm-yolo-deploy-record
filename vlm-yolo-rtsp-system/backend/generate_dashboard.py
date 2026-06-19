@@ -40,7 +40,7 @@ def card(event):
     risk_level = esc(event.get("risk_level", "unknown"))
     risk_reason = esc(event.get("risk_reason", ""))
     recommended_action = esc(event.get("recommended_action", ""))
-    qwen_summary = esc("风险判断：" + str(event.get("risk_reason", "")) + " 处理建议：" + str(event.get("recommended_action", "")))
+    qwen_summary = esc(event.get("qwen_summary", ""))
     trigger_reason = esc(event.get("trigger_reason", ""))
     json_name = esc(event.get("_json_name", ""))
     img = image_path(event.get("keyframe_path", ""))
