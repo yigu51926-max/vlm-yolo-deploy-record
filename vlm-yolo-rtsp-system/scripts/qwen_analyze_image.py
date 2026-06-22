@@ -29,13 +29,15 @@ def build_prompt(config, detect_info: str = ""):
     return prompt
 
 
-def make_log_path(config, image_path: str):
+def make_log_path(config, image_path: str, event_id: str = ""):
     log_dir = Path(config["outputs"]["event_log_dir"])
     log_dir.mkdir(parents=True, exist_ok=True)
 
+    if event_id:
+        return log_dir / f"qwen_analysis_{event_id}.txt"
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    image_name = Path(image_path).stem
-    return log_dir / f"qwen_analysis_{image_name}_{timestamp}.txt"
+    return log_dir / f"qwen_analysis_{Path(image_path).stem}_{timestamp}.txt"
 
 
 def check_file(path: str, name: str):
@@ -43,7 +45,7 @@ def check_file(path: str, name: str):
         raise FileNotFoundError(f"找不到{name}：{path}")
 
 
-def run_qwen_analysis(config, image_path: str, detect_info: str = ""):
+def run_qwen_analysis(config, image_path: str, detect_info: str = "", event_id: str = ""):
     qwen_cfg = config["qwen"]
 
     llama_cli = qwen_cfg["llama_cli"]
@@ -57,7 +59,7 @@ def run_qwen_analysis(config, image_path: str, detect_info: str = ""):
     check_file(mmproj_path, "mmproj 文件")
 
     prompt = build_prompt(config, detect_info)
-    log_path = make_log_path(config, image_path)
+    log_path = make_log_path(config, image_path, event_id)
 
     print("=" * 80)
     print("[Qwen3-VL] 开始分析图片")
@@ -112,6 +114,7 @@ def main():
     parser.add_argument("--config", default="configs/collaboration_config.json")
     parser.add_argument("--image", required=True, help="输入图片路径")
     parser.add_argument("--detect-info", default="", help="YOLO 检测结果文本")
+    parser.add_argument("--event-id", default="", help="事件编号，用于关联 Qwen 日志")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -119,7 +122,8 @@ def main():
     log_path = run_qwen_analysis(
         config=config,
         image_path=args.image,
-        detect_info=args.detect_info
+        detect_info=args.detect_info,
+        event_id=args.event_id
     )
 
     print("[日志预览]")

@@ -4,8 +4,10 @@ import argparse
 from pathlib import Path
 
 try:
+    from .event_utils import atomic_write_json
     from .project_paths import resolve_project_path
 except ImportError:
+    from event_utils import atomic_write_json
     from project_paths import resolve_project_path
 
 
@@ -183,10 +185,7 @@ def enhance_one_event(json_path):
     event["qwen_summary"] = qwen_summary
     event["qwen_analysis_cleaned"] = qwen_text[:1500]
 
-    with json_path.open("w", encoding="utf-8") as f:
-        json.dump(event, f, ensure_ascii=False, indent=2)
-
-    return json_path
+    return atomic_write_json(json_path, event)
 
 
 def main():

@@ -8,9 +8,11 @@ from pathlib import Path
 from ultralytics import YOLO
 try:
     from .enhance_event_json import enhance_one_event
+    from .event_utils import atomic_write_json, generate_event_id
     from .project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 except ImportError:
     from enhance_event_json import enhance_one_event
+    from event_utils import atomic_write_json, generate_event_id
     from project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 
 
@@ -102,8 +104,7 @@ def save_keyframe(frame, result, keyframe_dir, stream_name, event_id):
     keyframe_dir = Path(keyframe_dir)
     keyframe_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{event_id}_{stream_name}_{timestamp}.jpg"
+    filename = f"{event_id}_{stream_name}.jpg"
     path = keyframe_dir / filename
 
     plotted = result.plot()
@@ -112,22 +113,16 @@ def save_keyframe(frame, result, keyframe_dir, stream_name, event_id):
     return str(path)
 
 
-def latest_file(directory, pattern="*.txt"):
-    files = list(Path(directory).glob(pattern))
-    if not files:
-        return ""
-    return str(max(files, key=lambda path: path.stat().st_mtime))
-
-
-def call_qwen(config_path, image_path, detect_info, event_log_dir):
-    before_latest = latest_file(event_log_dir, "*.txt")
+def call_qwen(config_path, image_path, detect_info, event_id, event_log_dir):
+    log_path = Path(event_log_dir) / f"qwen_analysis_{event_id}.txt"
 
     cmd = [
         "python",
         "scripts/qwen_analyze_image.py",
         "--config", config_path,
         "--image", image_path,
-        "--detect-info", detect_info
+        "--detect-info", detect_info,
+        "--event-id", event_id
     ]
 
     print("=" * 80)
@@ -140,12 +135,7 @@ def call_qwen(config_path, image_path, detect_info, event_log_dir):
         cwd=PROJECT_ROOT
     )
 
-    after_latest = latest_file(event_log_dir, "*.txt")
-
-    if after_latest and after_latest != before_latest:
-        return process.returncode, after_latest
-
-    return process.returncode, after_latest
+    return process.returncode, str(log_path)
 
 
 def save_event_json(event_json_dir, event_data):
@@ -155,10 +145,7 @@ def save_event_json(event_json_dir, event_data):
     event_id = event_data["event_id"]
     path = event_json_dir / f"{event_id}.json"
 
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(event_data, f, ensure_ascii=False, indent=2)
-
-    return str(path)
+    return str(atomic_write_json(path, event_data))
 
 
 def main():
@@ -266,7 +253,7 @@ def main():
                     continue
 
                 total_events += 1
-                event_id = f"event_{total_events:03d}"
+                event_id = generate_event_id()
                 last_trigger_time[stream_name] = now
 
                 detect_info = format_detect_info(objects)
@@ -293,6 +280,7 @@ def main():
                     config_path=args.config,
                     image_path=keyframe_path,
                     detect_info=detect_info,
+                    event_id=event_id,
                     event_log_dir=event_log_dir
                 )
 

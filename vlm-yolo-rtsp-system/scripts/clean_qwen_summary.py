@@ -5,6 +5,11 @@ import json
 import re
 from pathlib import Path
 
+try:
+    from .event_utils import atomic_write_json
+except ImportError:
+    from event_utils import atomic_write_json
+
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 EVENT_JSON_DIR = PROJECT_DIR / "outputs" / "event_json"
 
@@ -91,8 +96,7 @@ def clean_event_json(path: Path):
 
     data["qwen_summary"] = cleaned
 
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    atomic_write_json(path, data)
 
     return cleaned
 

@@ -3,13 +3,22 @@
 
 import json
 import html
+import logging
+import sys
 from pathlib import Path
 from datetime import datetime
+
+try:
+    from scripts.event_utils import normalize_risk_level
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.event_utils import normalize_risk_level
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 EVENT_DIR = PROJECT_DIR / "outputs" / "event_json"
 DASHBOARD_DIR = PROJECT_DIR / "outputs" / "dashboard"
 HTML_PATH = DASHBOARD_DIR / "index.html"
+LOGGER = logging.getLogger(__name__)
 
 
 def esc(value):
@@ -26,9 +35,17 @@ def image_path(keyframe_path):
 
 def load_events():
     events = []
-    for path in sorted(EVENT_DIR.glob("event_*.json")):
-        with path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+    for path in sorted(EVENT_DIR.glob("*.json")):
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                LOGGER.warning("跳过非对象事件文件 %s", path.name)
+                continue
+        except (OSError, json.JSONDecodeError) as exc:
+            LOGGER.warning("跳过异常事件文件 %s: %s", path.name, exc)
+            continue
+        data["risk_level"] = normalize_risk_level(data.get("risk_level"))
         data["_json_name"] = path.name
         events.append(data)
     return events

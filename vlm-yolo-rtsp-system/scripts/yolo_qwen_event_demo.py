@@ -3,13 +3,14 @@ import json
 import time
 import argparse
 import subprocess
-from datetime import datetime
 from pathlib import Path
 from ultralytics import YOLO
 
 try:
+    from .event_utils import generate_event_id
     from .project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 except ImportError:
+    from event_utils import generate_event_id
     from project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 
 
@@ -75,8 +76,7 @@ def save_keyframe(frame, result, keyframe_dir, stream_name, event_id):
     keyframe_dir = Path(keyframe_dir)
     keyframe_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{event_id}_{stream_name}_{timestamp}.jpg"
+    filename = f"{event_id}_{stream_name}.jpg"
     path = keyframe_dir / filename
 
     plotted = result.plot()
@@ -85,13 +85,14 @@ def save_keyframe(frame, result, keyframe_dir, stream_name, event_id):
     return str(path)
 
 
-def call_qwen(config_path, image_path, detect_info):
+def call_qwen(config_path, image_path, detect_info, event_id):
     cmd = [
         "python",
         "scripts/qwen_analyze_image.py",
         "--config", config_path,
         "--image", image_path,
-        "--detect-info", detect_info
+        "--detect-info", detect_info,
+        "--event-id", event_id
     ]
 
     print("=" * 80)
@@ -202,7 +203,7 @@ def main():
                         continue
 
                     total_events += 1
-                    event_id = f"event_{total_events:03d}"
+                    event_id = generate_event_id()
                     last_trigger_time[stream_name] = now
 
                     detect_info = format_detect_info(result, model)
@@ -222,7 +223,7 @@ def main():
                     print(detect_info)
                     print("=" * 80)
 
-                    call_qwen(args.config, keyframe_path, detect_info)
+                    call_qwen(args.config, keyframe_path, detect_info, event_id)
 
                     if total_events >= max_events:
                         print("[停止] 已达到最大事件数")

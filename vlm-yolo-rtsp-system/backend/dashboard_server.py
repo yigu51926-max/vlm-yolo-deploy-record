@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import json
+import logging
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -11,10 +13,17 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+try:
+    from scripts.event_utils import normalize_risk_level
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.event_utils import normalize_risk_level
+
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 EVENT_DIR = PROJECT_DIR / "outputs" / "event_json"
 KEYFRAME_DIR = PROJECT_DIR / "outputs" / "keyframes"
+LOGGER = logging.getLogger(__name__)
 
 app = FastAPI(title="YOLO26 + Qwen3-VL Event Dashboard")
 app.mount(
@@ -115,7 +124,7 @@ def normalize_event(data: dict[str, Any], json_path: Path) -> dict[str, Any]:
     return {
         "event_id": first_value(data, ["event_id", "id", "event_no"], "unknown"),
         "stream_name": first_value(data, ["stream_name", "camera_name", "source"], "unknown"),
-        "risk_level": first_value(data, ["risk_level", "level", "risk"], "unknown"),
+        "risk_level": normalize_risk_level(first_value(data, ["risk_level", "level", "risk"], "unknown")),
         "qwen_summary": qwen_summary,
         "risk_reason": risk_reason,
         "recommended_action": recommended_action,
@@ -134,31 +143,21 @@ def load_events() -> list[dict[str, Any]]:
         return []
 
     events = []
-    for path in sorted(EVENT_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
+    for path in EVENT_DIR.glob("*.json"):
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
+
+            if not isinstance(data, dict):
+                LOGGER.warning("跳过非对象事件文件 %s", path.name)
+                continue
+
+            events.append(normalize_event(data, path))
         except (OSError, json.JSONDecodeError) as exc:
-            events.append(
-                {
-                    "event_id": "invalid_json",
-                    "stream_name": "unknown",
-                    "risk_level": "unknown",
-                    "qwen_summary": "",
-                    "risk_reason": f"JSON 读取失败：{exc}",
-                    "recommended_action": "请检查事件 JSON 文件格式。",
-                    "trigger_reason": "",
-                    "timestamp": "",
-                    "json_name": path.name,
-                    "json_mtime": path.stat().st_mtime,
-                    "keyframe_url": "",
-                }
-            )
+            LOGGER.warning("跳过异常事件文件 %s: %s", path.name, exc)
             continue
 
-        if isinstance(data, dict):
-            events.append(normalize_event(data, path))
-
+    events.sort(key=lambda event: event["json_mtime"], reverse=True)
     return events
 
 
@@ -279,7 +278,7 @@ def index() -> str:
     }
     .risk-high { background: #dc2626; }
     .risk-warning { background: #d97706; }
-    .risk-low { background: #16a34a; }
+    .risk-normal { background: #16a34a; }
     .risk-unknown { background: #6b7280; }
     .image-box {
       margin: 16px 0;
@@ -335,7 +334,7 @@ def index() -> str:
       <option value="">全部风险</option>
       <option value="high">高风险</option>
       <option value="warning">中风险</option>
-      <option value="low">低风险</option>
+      <option value="normal">正常</option>
       <option value="unknown">未知风险</option>
     </select>
     <select id="stream-filter">
@@ -372,8 +371,9 @@ def index() -> str:
         danger: ["高风险", "risk-high"],
         warning: ["中风险", "risk-warning"],
         medium: ["中风险", "risk-warning"],
-        low: ["低风险", "risk-low"],
-        safe: ["低风险", "risk-low"],
+        normal: ["正常", "risk-normal"],
+        low: ["正常", "risk-normal"],
+        safe: ["正常", "risk-normal"],
         unknown: ["未知风险", "risk-unknown"]
       };
       return mapping[value] || [text(level, "未知风险"), "risk-unknown"];
@@ -452,7 +452,7 @@ def index() -> str:
       const value = text(level, "unknown").toLowerCase();
       if (["high", "danger"].includes(value)) return "high";
       if (["warning", "medium"].includes(value)) return "warning";
-      if (["low", "safe"].includes(value)) return "low";
+      if (["normal", "low", "safe"].includes(value)) return "normal";
       return "unknown";
     }
 
