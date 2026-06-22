@@ -175,7 +175,7 @@ def index() -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>后台事件看板 v0.3</title>
+  <title>后台事件看板 v0.3.1</title>
   <style>
     body {
       margin: 0;
@@ -198,7 +198,27 @@ def index() -> str:
     }
     .summary {
       padding: 20px 36px 0 36px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
       font-size: 18px;
+    }
+    .refresh-button {
+      border: 0;
+      border-radius: 6px;
+      padding: 8px 14px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    .refresh-button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+    .refresh-time {
+      color: #6b7280;
+      font-size: 14px;
     }
     main {
       padding: 24px 36px 48px 36px;
@@ -229,13 +249,17 @@ def index() -> str:
       word-break: break-all;
     }
     .badge {
-      background: #d97706;
+      background: #6b7280;
       color: white;
       border-radius: 999px;
       padding: 6px 12px;
       font-weight: bold;
       white-space: nowrap;
     }
+    .risk-high { background: #dc2626; }
+    .risk-warning { background: #d97706; }
+    .risk-low { background: #16a34a; }
+    .risk-unknown { background: #6b7280; }
     .image-box {
       margin: 16px 0;
       background: #0f172a;
@@ -274,12 +298,14 @@ def index() -> str:
 </head>
 <body>
   <header>
-    <h1>后台事件看板 v0.3</h1>
+    <h1>后台事件看板 v0.3.1</h1>
     <p>数据来源：outputs/event_json，关键帧：outputs/keyframes</p>
   </header>
 
   <div class="summary">
-    当前事件数量：<b id="event-count">0</b>
+    <span>当前事件数量：<b id="event-count">0</b></span>
+    <button id="refresh-button" class="refresh-button">刷新</button>
+    <span id="refresh-time" class="refresh-time">尚未刷新</span>
   </div>
 
   <main id="event-list">
@@ -289,6 +315,22 @@ def index() -> str:
   <script>
     const eventList = document.getElementById("event-list");
     const eventCount = document.getElementById("event-count");
+    const refreshButton = document.getElementById("refresh-button");
+    const refreshTime = document.getElementById("refresh-time");
+
+    function riskInfo(level) {
+      const value = text(level, "unknown").toLowerCase();
+      const mapping = {
+        high: ["高风险", "risk-high"],
+        danger: ["高风险", "risk-high"],
+        warning: ["中风险", "risk-warning"],
+        medium: ["中风险", "risk-warning"],
+        low: ["低风险", "risk-low"],
+        safe: ["低风险", "risk-low"],
+        unknown: ["未知风险", "risk-unknown"]
+      };
+      return mapping[value] || [text(level, "未知风险"), "risk-unknown"];
+    }
 
     function text(value, fallback = "") {
       if (value === null || value === undefined || value === "") {
@@ -329,8 +371,9 @@ def index() -> str:
       titleBox.appendChild(meta);
 
       const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = text(event.risk_level, "unknown");
+      const [riskLabel, riskClass] = riskInfo(event.risk_level);
+      badge.className = `badge ${riskClass}`;
+      badge.textContent = riskLabel;
 
       top.appendChild(titleBox);
       top.appendChild(badge);
@@ -359,11 +402,16 @@ def index() -> str:
     }
 
     async function loadEvents() {
+      refreshButton.disabled = true;
       try {
-        const response = await fetch("/api/events");
+        const response = await fetch("/api/events", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
         const data = await response.json();
         const events = data.events || [];
-        eventCount.textContent = String(data.count || events.length);
+        eventCount.textContent = String(data.count ?? events.length);
+        refreshTime.textContent = `最后刷新：${new Date().toLocaleString("zh-CN")}`;
         eventList.innerHTML = "";
 
         if (!events.length) {
@@ -383,10 +431,14 @@ def index() -> str:
         empty.className = "empty";
         empty.textContent = `事件数据加载失败：${error}`;
         eventList.appendChild(empty);
+      } finally {
+        refreshButton.disabled = false;
       }
     }
 
+    refreshButton.addEventListener("click", loadEvents);
     loadEvents();
+    setInterval(loadEvents, 5000);
   </script>
 </body>
 </html>
