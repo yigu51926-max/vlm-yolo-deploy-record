@@ -175,7 +175,7 @@ def index() -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>后台事件看板 v0.3.1</title>
+  <title>后台事件看板 v0.4</title>
   <style>
     body {
       margin: 0;
@@ -219,6 +219,27 @@ def index() -> str:
     .refresh-time {
       color: #6b7280;
       font-size: 14px;
+    }
+    .filters {
+      margin: 18px 36px 0;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .filters input, .filters select, .filters button {
+      min-height: 38px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 0 12px;
+      background: white;
+      font-size: 14px;
+    }
+    .filters input {
+      flex: 1;
+      min-width: 220px;
+    }
+    .filters button {
+      cursor: pointer;
     }
     main {
       padding: 24px 36px 48px 36px;
@@ -298,14 +319,33 @@ def index() -> str:
 </head>
 <body>
   <header>
-    <h1>后台事件看板 v0.3.1</h1>
+    <h1>后台事件看板 v0.4</h1>
     <p>数据来源：outputs/event_json，关键帧：outputs/keyframes</p>
   </header>
 
   <div class="summary">
-    <span>当前事件数量：<b id="event-count">0</b></span>
+    <span>当前显示：<b id="event-count">0</b> / 共 <b id="total-count">0</b> 条</span>
     <button id="refresh-button" class="refresh-button">刷新</button>
     <span id="refresh-time" class="refresh-time">尚未刷新</span>
+  </div>
+
+  <div class="filters">
+    <input id="search-input" type="search" placeholder="搜索事件编号、视频流、摘要、原因或建议">
+    <select id="risk-filter">
+      <option value="">全部风险</option>
+      <option value="high">高风险</option>
+      <option value="warning">中风险</option>
+      <option value="low">低风险</option>
+      <option value="unknown">未知风险</option>
+    </select>
+    <select id="stream-filter">
+      <option value="">全部视频流</option>
+    </select>
+    <select id="sort-order">
+      <option value="newest">时间：最新优先</option>
+      <option value="oldest">时间：最早优先</option>
+    </select>
+    <button id="reset-button" type="button">重置筛选</button>
   </div>
 
   <main id="event-list">
@@ -315,8 +355,15 @@ def index() -> str:
   <script>
     const eventList = document.getElementById("event-list");
     const eventCount = document.getElementById("event-count");
+    const totalCount = document.getElementById("total-count");
     const refreshButton = document.getElementById("refresh-button");
     const refreshTime = document.getElementById("refresh-time");
+    const searchInput = document.getElementById("search-input");
+    const riskFilter = document.getElementById("risk-filter");
+    const streamFilter = document.getElementById("stream-filter");
+    const sortOrder = document.getElementById("sort-order");
+    const resetButton = document.getElementById("reset-button");
+    let allEvents = [];
 
     function riskInfo(level) {
       const value = text(level, "unknown").toLowerCase();
@@ -401,6 +448,79 @@ def index() -> str:
       return root;
     }
 
+    function riskGroup(level) {
+      const value = text(level, "unknown").toLowerCase();
+      if (["high", "danger"].includes(value)) return "high";
+      if (["warning", "medium"].includes(value)) return "warning";
+      if (["low", "safe"].includes(value)) return "low";
+      return "unknown";
+    }
+
+    function populateStreamFilter(events) {
+      const selected = streamFilter.value;
+      const streams = [...new Set(
+        events.map(event => text(event.stream_name)).filter(Boolean)
+      )].sort();
+
+      streamFilter.innerHTML = '<option value="">全部视频流</option>';
+      for (const stream of streams) {
+        const option = document.createElement("option");
+        option.value = stream;
+        option.textContent = stream;
+        streamFilter.appendChild(option);
+      }
+
+      if (streams.includes(selected)) {
+        streamFilter.value = selected;
+      }
+    }
+
+    function renderEvents() {
+      const query = searchInput.value.trim().toLowerCase();
+      const selectedRisk = riskFilter.value;
+      const selectedStream = streamFilter.value;
+
+      const events = allEvents.filter(event => {
+        const searchable = [
+          event.event_id,
+          event.stream_name,
+          event.qwen_summary,
+          event.risk_reason,
+          event.recommended_action,
+          event.trigger_reason,
+          event.json_name
+        ].map(value => text(value).toLowerCase()).join(" ");
+
+        return (!query || searchable.includes(query))
+          && (!selectedRisk || riskGroup(event.risk_level) === selectedRisk)
+          && (!selectedStream || text(event.stream_name) === selectedStream);
+      });
+
+      events.sort((a, b) => {
+        const first = Number(a.json_mtime || 0);
+        const second = Number(b.json_mtime || 0);
+        return sortOrder.value === "oldest" ? first - second : second - first;
+      });
+
+      eventCount.textContent = String(events.length);
+      totalCount.textContent = String(allEvents.length);
+      eventList.innerHTML = "";
+
+      if (!events.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = allEvents.length
+          ? "没有符合筛选条件的事件"
+          : "暂无事件数据";
+        eventList.appendChild(empty);
+        return;
+      }
+
+      for (const event of events) {
+        eventList.appendChild(card(event));
+      }
+    }
+
     async function loadEvents() {
       refreshButton.disabled = true;
       try {
@@ -409,22 +529,10 @@ def index() -> str:
           throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        const events = data.events || [];
-        eventCount.textContent = String(data.count ?? events.length);
+        allEvents = data.events || [];
+        populateStreamFilter(allEvents);
+        renderEvents();
         refreshTime.textContent = `最后刷新：${new Date().toLocaleString("zh-CN")}`;
-        eventList.innerHTML = "";
-
-        if (!events.length) {
-          const empty = document.createElement("div");
-          empty.className = "empty";
-          empty.textContent = "暂无事件数据";
-          eventList.appendChild(empty);
-          return;
-        }
-
-        for (const event of events) {
-          eventList.appendChild(card(event));
-        }
       } catch (error) {
         eventList.innerHTML = "";
         const empty = document.createElement("div");
@@ -437,6 +545,19 @@ def index() -> str:
     }
 
     refreshButton.addEventListener("click", loadEvents);
+    searchInput.addEventListener("input", renderEvents);
+    riskFilter.addEventListener("change", renderEvents);
+    streamFilter.addEventListener("change", renderEvents);
+    sortOrder.addEventListener("change", renderEvents);
+
+    resetButton.addEventListener("click", () => {
+      searchInput.value = "";
+      riskFilter.value = "";
+      streamFilter.value = "";
+      sortOrder.value = "newest";
+      renderEvents();
+    });
+
     loadEvents();
     setInterval(loadEvents, 5000);
   </script>
