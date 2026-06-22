@@ -1,83 +1,114 @@
 # VLM-YOLO RTSP 多路视频检测系统
 
-本目录用于记录和管理 YOLO26 与 RTSP 多路视频流检测系统的工程脚本，为后续接入 Qwen3-VL 视觉语言模型和 Docker Compose 一键部署做准备。
+本目录是项目唯一运行根目录。脚本、配置、输出和 Docker Compose 都以当前目录为基准，不依赖固定的用户主目录。
 
-## 当前已完成
+## 目录
 
-- YOLO26 单图目标检测
-- Qwen3-VL 单图语义理解
-- YOLO26 + Qwen3-VL 单图协同分析
-- 单路本地视频 YOLO 检测
-- Docker 部署 MediaMTX RTSP 服务端
-- FFmpeg 本地视频推 RTSP 流
-- 单路 RTSP 视频流 YOLO 检测
-- 三路 RTSP 视频流推流
-- 三路 YOLO26 多路检测
-- 一键启动、一键检测、一键停止脚本整理
-
-## 项目结构
-
+```text
 vlm-yolo-rtsp-system/
-  configs/
-  logs/
-  outputs/
-  scripts/
-    start_mediamtx.sh
-    start_streams.sh
-    check_streams.sh
-    run_multi_yolo.sh
-    stop_all.sh
-    multi_rtsp_yolo.py
-    single_video_yolo.py
+├── backend/                 # FastAPI 事件看板
+├── configs/                 # YOLO + Qwen 协同配置
+├── docker/                  # 镜像和 Docker 测试脚本
+├── models/                  # 默认模型目录（模型文件不提交）
+├── outputs/                 # 当前仓库内的运行输出
+├── scripts/                 # 推流、检测和协同脚本
+└── docker-compose.yml
+```
 
-## 使用方法
+## 路径配置
 
-进入工程目录：
+默认路径相对本目录解析：
 
-cd ~/vlm-yolo-rtsp-system
+- YOLO：`models/yolo26n.pt`
+- llama.cpp：`vendor/llama.cpp/build/bin/llama-cli`
+- Qwen：`models/qwen/`
+- 测试视频：`assets/test.mp4`
+- 测试图片：`assets/a.png`
+- 输出：`outputs/`
 
-启动 MediaMTX RTSP 服务端：
+模型和测试素材不随仓库提交。启动检测或推流前，必须将文件放入上述默认位置，或者通过环境变量指向现有文件：
 
+```bash
+export YOLO_MODEL_PATH=/path/to/yolo26n.pt
+export LLAMA_CLI_PATH=/path/to/llama-cli
+export QWEN_MODEL_PATH=/path/to/Qwen3VL-2B-Instruct-Q4_K_M.gguf
+export QWEN_MMPROJ_PATH=/path/to/mmproj-Qwen3VL-2B-Instruct-F16.gguf
+export TEST_VIDEO_PATH=/path/to/test.mp4
+export TEST_IMAGE_PATH=/path/to/a.png
+```
+
+## 宿主机启动
+
+Shell 脚本会自行定位项目根目录。以下命令从 Git 仓库根目录进入主工程：
+
+```bash
+cd vlm-yolo-rtsp-system
+```
+
+后台看板只读取已有 `outputs` 数据，不要求模型文件；YOLO、Qwen 和推流命令则要求先完成上面的模型或素材路径配置。
+
+启动 MediaMTX：
+
+```bash
 ./scripts/start_mediamtx.sh
+```
 
-启动三路 RTSP 推流：
+启动并检查三路测试 RTSP：
 
+```bash
 ./scripts/start_streams.sh
-
-检查三路视频流：
-
 ./scripts/check_streams.sh
+```
 
-运行三路 YOLO26 检测：
+运行三路 YOLO：
 
+```bash
 ./scripts/run_multi_yolo.sh
+```
 
-停止全部服务：
+运行 YOLO + Qwen 事件协同：
 
+```bash
+python scripts/yolo_qwen_event_json_demo.py
+```
+
+启动后台看板：
+
+```bash
+python -m uvicorn backend.dashboard_server:app --host 0.0.0.0 --port 8000
+```
+
+访问 `http://服务器地址:8000/`。
+
+停止推流和 MediaMTX：
+
+```bash
 ./scripts/stop_all.sh
+```
 
-## 今日测试结果
+## Docker Compose
 
-三路 YOLO26 检测成功完成：
+Compose 始终挂载当前目录。模型目录可通过环境变量指定：
 
-总处理帧数：900
-总平均 FPS：37.53
-cam1：300 帧，平均 FPS 12.51
-cam2：300 帧，平均 FPS 12.51
-cam3：300 帧，平均 FPS 12.51
+```bash
+export YOLO_MODEL_DIR=/path/to/yolo-model-directory
+export LLAMA_CPP_DIR=/path/to/llama.cpp
+export QWEN_MODEL_DIR=/path/to/qwen-model-directory
 
-输出视频保存在：
+docker-compose config
+sudo docker-compose up -d mediamtx
+sudo docker-compose --profile event run --rm yolo-event
+```
 
-outputs/cam1_detect.mp4
-outputs/cam2_detect.mp4
-outputs/cam3_detect.mp4
+未设置变量时，Compose 默认使用本目录下的 `models/`、`vendor/llama.cpp/` 和 `models/qwen/`。
 
-由于视频文件较大，outputs、logs 和 mp4 文件不上传到 Gitee。
+## 输出
 
-## 后续计划
+运行数据保存在当前项目的 `outputs/`：
 
-- 将 YOLO 多路检测模块 Docker 化
-- 将 FFmpeg 推流模块 Docker 化
-- 编写 docker-compose.yml 实现一键启动
-- 接入 Qwen3-VL 进行关键帧语义分析
-- 增加检测日志、报警记录和多路视频展示界面
+- `outputs/keyframes/`
+- `outputs/event_logs/`
+- `outputs/event_json/`
+- `outputs/docker_multi_rtsp/`
+
+`outputs/` 是普通目录，不再链接到仓库外部路径；运行数据仍由 `.gitignore` 忽略。

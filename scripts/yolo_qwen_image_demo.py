@@ -1,26 +1,23 @@
 import os
+from pathlib import Path
 import cv2
 import subprocess
 from ultralytics import YOLO
 
 # ===== 路径配置 =====
-IMAGE_PATH = "/home/lee-server/a.png"
-
-YOLO_MODEL = "/home/lee-server/yolov8/yolo26n.pt"
-
-LLAMA_CLI = "/home/lee-server/llama.cpp/build/bin/llama-cli"
-
-QWEN_MODEL = "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/Qwen3VL-2B-Instruct-Q4_K_M.gguf"
-
-MMPROJ = "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/mmproj-Qwen3VL-2B-Instruct-F16.gguf"
-
-OUTPUT_IMAGE = "/home/lee-server/yolo_qwen_result.jpg"
+PROJECT_ROOT = Path(__file__).resolve().parents[1] / "vlm-yolo-rtsp-system"
+IMAGE_PATH = Path(os.environ.get("TEST_IMAGE_PATH", PROJECT_ROOT / "assets" / "a.png"))
+YOLO_MODEL = Path(os.environ.get("YOLO_MODEL_PATH", PROJECT_ROOT / "models" / "yolo26n.pt"))
+LLAMA_CLI = Path(os.environ.get("LLAMA_CLI_PATH", PROJECT_ROOT / "vendor" / "llama.cpp" / "build" / "bin" / "llama-cli"))
+QWEN_MODEL = Path(os.environ.get("QWEN_MODEL_PATH", PROJECT_ROOT / "models" / "qwen" / "Qwen3VL-2B-Instruct-Q4_K_M.gguf"))
+MMPROJ = Path(os.environ.get("QWEN_MMPROJ_PATH", PROJECT_ROOT / "models" / "qwen" / "mmproj-Qwen3VL-2B-Instruct-F16.gguf"))
+OUTPUT_IMAGE = PROJECT_ROOT / "outputs" / "yolo_qwen_result.jpg"
 
 
 def run_yolo():
-    model = YOLO(YOLO_MODEL)
+    model = YOLO(str(YOLO_MODEL))
     results = model.predict(
-        source=IMAGE_PATH,
+        source=str(IMAGE_PATH),
         conf=0.25,
         imgsz=960,
         verbose=True
@@ -29,7 +26,7 @@ def run_yolo():
     r = results[0]
     names = r.names
 
-    img = cv2.imread(IMAGE_PATH)
+    img = cv2.imread(str(IMAGE_PATH))
     if img is None:
         raise RuntimeError(f"图片读取失败：{IMAGE_PATH}")
 
@@ -61,7 +58,8 @@ def run_yolo():
 
         yolo_summary = "\n".join(yolo_lines)
 
-    cv2.imwrite(OUTPUT_IMAGE, img)
+    OUTPUT_IMAGE.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(OUTPUT_IMAGE), img)
 
     return yolo_summary
 
@@ -84,10 +82,10 @@ YOLO26 已经对图片进行了目标检测，检测结果如下：
 """
 
     cmd = [
-        LLAMA_CLI,
-        "-m", QWEN_MODEL,
-        "--mmproj", MMPROJ,
-        "--image", IMAGE_PATH,
+        str(LLAMA_CLI),
+        "-m", str(QWEN_MODEL),
+        "--mmproj", str(MMPROJ),
+        "--image", str(IMAGE_PATH),
         "-p", prompt,
         "-n", "512",
     ]

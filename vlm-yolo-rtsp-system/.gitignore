@@ -1,4 +1,5 @@
-outputs/
+outputs/*
+!outputs/.gitkeep
 logs/
 *.mp4
 *.avi

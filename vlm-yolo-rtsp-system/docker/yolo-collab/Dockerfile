@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-WORKDIR /workspace/vlm-yolo-rtsp-system
+WORKDIR /workspace/project
 
 ENV PYTHONUNBUFFERED=1
 ENV OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp

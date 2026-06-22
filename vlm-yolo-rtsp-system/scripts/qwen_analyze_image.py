@@ -5,11 +5,18 @@ import argparse
 import tempfile
 import subprocess
 from datetime import datetime
+from pathlib import Path
+
+try:
+    from .project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
+except ImportError:
+    from project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 
 
 def load_config(config_path: str):
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    path = resolve_project_path(config_path)
+    with path.open("r", encoding="utf-8") as f:
+        return resolve_config_paths(json.load(f))
 
 
 def build_prompt(config, detect_info: str = ""):
@@ -23,16 +30,16 @@ def build_prompt(config, detect_info: str = ""):
 
 
 def make_log_path(config, image_path: str):
-    log_dir = config["outputs"]["event_log_dir"]
-    os.makedirs(log_dir, exist_ok=True)
+    log_dir = Path(config["outputs"]["event_log_dir"])
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    image_name = os.path.splitext(os.path.basename(image_path))[0]
-    return os.path.join(log_dir, f"qwen_analysis_{image_name}_{timestamp}.txt")
+    image_name = Path(image_path).stem
+    return log_dir / f"qwen_analysis_{image_name}_{timestamp}.txt"
 
 
 def check_file(path: str, name: str):
-    if not os.path.exists(path):
+    if not Path(path).exists():
         raise FileNotFoundError(f"找不到{name}：{path}")
 
 
@@ -43,6 +50,7 @@ def run_qwen_analysis(config, image_path: str, detect_info: str = ""):
     model_path = qwen_cfg["model_path"]
     mmproj_path = qwen_cfg["mmproj_path"]
 
+    image_path = str(resolve_project_path(image_path))
     check_file(image_path, "图片文件")
     check_file(llama_cli, "llama-cli")
     check_file(model_path, "Qwen 模型")
@@ -59,20 +67,20 @@ def run_qwen_analysis(config, image_path: str, detect_info: str = ""):
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".txt") as pf:
         pf.write(prompt)
-        prompt_file = pf.name
+        prompt_file = Path(pf.name)
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".sh") as sf:
-        runner_path = sf.name
+        runner_path = Path(sf.name)
         sf.write("#!/bin/bash\n")
         sf.write(f"{shlex.quote(llama_cli)} \\\n")
         sf.write(f"  -m {shlex.quote(model_path)} \\\n")
         sf.write(f"  --mmproj {shlex.quote(mmproj_path)} \\\n")
         sf.write(f"  --image {shlex.quote(image_path)} \\\n")
-        sf.write(f"  -p \"$(cat {shlex.quote(prompt_file)})\" << 'EOF'\n")
+        sf.write(f"  -p \"$(cat {shlex.quote(str(prompt_file))})\" << 'EOF'\n")
         sf.write("/exit\n")
         sf.write("EOF\n")
 
-    os.chmod(runner_path, 0o755)
+    runner_path.chmod(0o755)
 
     # 使用 script 命令捕获 llama-cli 的交互式终端输出
     cmd = [
@@ -80,23 +88,23 @@ def run_qwen_analysis(config, image_path: str, detect_info: str = ""):
         "-q",
         "-f",
         "-c",
-        f"bash {shlex.quote(runner_path)}",
-        log_path
+        f"bash {shlex.quote(str(runner_path))}",
+        str(log_path)
     ]
 
-    process = subprocess.run(cmd, timeout=300)
+    process = subprocess.run(cmd, timeout=300, cwd=PROJECT_ROOT)
 
-    os.remove(prompt_file)
-    os.remove(runner_path)
+    prompt_file.unlink()
+    runner_path.unlink()
 
     print("=" * 80)
     print("[Qwen3-VL] 分析完成")
     print(f"[returncode] {process.returncode}")
     print(f"[日志保存] {log_path}")
-    print(f"[日志大小] {os.path.getsize(log_path)} bytes")
+    print(f"[日志大小] {log_path.stat().st_size} bytes")
     print("=" * 80)
 
-    return log_path
+    return str(log_path)
 
 
 def main():

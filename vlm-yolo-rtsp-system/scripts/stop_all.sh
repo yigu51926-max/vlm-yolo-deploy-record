@@ -1,4 +1,6 @@
 #!/bin/bash
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
 echo "========== 停止 FFmpeg 三路推流 =========="
 pkill -f "rtsp://127.0.0.1:8554/cam" 2>/dev/null

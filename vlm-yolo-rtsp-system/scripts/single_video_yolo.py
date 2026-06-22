@@ -1,23 +1,32 @@
 import os
+from pathlib import Path
 import cv2
 import time
 import argparse
 from ultralytics import YOLO
 
+try:
+    from .project_paths import PROJECT_ROOT, resolve_project_path
+except ImportError:
+    from project_paths import PROJECT_ROOT, resolve_project_path
+
 
 def run_video(source, model_path, output_path, conf=0.25, imgsz=960, max_frames=300):
-    source = os.path.expanduser(source)
-    output_path = os.path.expanduser(output_path)
+    source_path = Path(source).expanduser()
+    source = source if source.startswith(("rtsp://", "rtmp://", "http://", "https://")) else str(resolve_project_path(source_path))
+    output_path = resolve_project_path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     is_stream = source.startswith(("rtsp://", "rtmp://", "http://", "https://"))
 
-    if not is_stream and not os.path.exists(source):
+    if not is_stream and not Path(source).exists():
         raise FileNotFoundError(f"找不到视频：{source}")
 
-    if not os.path.exists(model_path):
+    model_path = resolve_project_path(model_path)
+    if not model_path.exists():
         raise FileNotFoundError(f"找不到YOLO模型：{model_path}")
 
-    model = YOLO(model_path)
+    model = YOLO(str(model_path))
 
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
@@ -31,7 +40,7 @@ def run_video(source, model_path, output_path, conf=0.25, imgsz=960, max_frames=
         src_fps = 25
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(output_path, fourcc, src_fps, (width, height))
+    writer = cv2.VideoWriter(str(output_path), fourcc, src_fps, (width, height))
 
     frame_id = 0
     start_time = time.time()
@@ -88,9 +97,9 @@ def run_video(source, model_path, output_path, conf=0.25, imgsz=960, max_frames=
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=str, default="/home/lee-server/test.mp4")
-    parser.add_argument("--model", type=str, default="/home/lee-server/yolov8/yolo26n.pt")
-    parser.add_argument("--output", type=str, default="/home/lee-server/yolo_video_output.mp4")
+    parser.add_argument("--source", type=str, default=os.environ.get("TEST_VIDEO_PATH", str(PROJECT_ROOT / "assets" / "test.mp4")))
+    parser.add_argument("--model", type=str, default=os.environ.get("YOLO_MODEL_PATH", str(PROJECT_ROOT / "models" / "yolo26n.pt")))
+    parser.add_argument("--output", type=str, default=str(PROJECT_ROOT / "outputs" / "yolo_video_output.mp4"))
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=960)
     parser.add_argument("--max-frames", type=int, default=300)

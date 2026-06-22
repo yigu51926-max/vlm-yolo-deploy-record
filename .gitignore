@@ -40,5 +40,8 @@ id_ed25519
 # System
 .DS_Store
 
-# Server runtime data symlink
+# Runtime output directory: keep the directory, ignore generated data
 vlm-yolo-rtsp-system/outputs
+!vlm-yolo-rtsp-system/outputs/
+vlm-yolo-rtsp-system/outputs/*
+!vlm-yolo-rtsp-system/outputs/.gitkeep

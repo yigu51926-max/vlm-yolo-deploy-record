@@ -14,7 +14,7 @@
     }
   ],
   "yolo": {
-    "model_path": "/home/lee-server/yolov8/yolo26n.pt",
+    "model_path": "models/yolo26n.pt",
     "imgsz": 640,
     "conf": 0.25
   },
@@ -25,14 +25,14 @@
     "max_events_per_run": 3
   },
   "qwen": {
-    "llama_cli": "/home/lee-server/llama.cpp/build/bin/llama-cli",
-    "model_path": "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/Qwen3VL-2B-Instruct-Q4_K_M.gguf",
-    "mmproj_path": "/home/lee-server/.cache/modelscope/hub/models/Qwen/Qwen3-VL-2B-Instruct-GGUF/mmproj-Qwen3VL-2B-Instruct-F16.gguf",
+    "llama_cli": "vendor/llama.cpp/build/bin/llama-cli",
+    "model_path": "models/qwen/Qwen3VL-2B-Instruct-Q4_K_M.gguf",
+    "mmproj_path": "models/qwen/mmproj-Qwen3VL-2B-Instruct-F16.gguf",
     "prompt": "请基于图片和YOLO检测结果做简短安全判断。只输出三部分：1.场景摘要；2.风险点；3.处理建议。总字数控制在150字以内，禁止重复描述。"
   },
   "outputs": {
-    "keyframe_dir": "/home/lee-server/vlm-yolo-rtsp-system/outputs/keyframes",
-    "event_log_dir": "/home/lee-server/vlm-yolo-rtsp-system/outputs/event_logs",
-    "event_json_dir": "/home/lee-server/vlm-yolo-rtsp-system/outputs/event_json"
+    "keyframe_dir": "outputs/keyframes",
+    "event_log_dir": "outputs/event_logs",
+    "event_json_dir": "outputs/event_json"
   }
 }

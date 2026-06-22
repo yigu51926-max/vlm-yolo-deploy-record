@@ -1,8 +1,12 @@
-import os
 import re
 import json
-import glob
 import argparse
+from pathlib import Path
+
+try:
+    from .project_paths import resolve_project_path
+except ImportError:
+    from project_paths import resolve_project_path
 
 
 def remove_control_chars(text):
@@ -153,7 +157,8 @@ def build_summary_from_qwen(qwen_text, detected_objects):
 
 
 def enhance_one_event(json_path):
-    with open(json_path, "r", encoding="utf-8") as f:
+    json_path = Path(json_path)
+    with json_path.open("r", encoding="utf-8") as f:
         event = json.load(f)
 
     qwen_log_path = event.get("qwen_log_path", "")
@@ -161,8 +166,9 @@ def enhance_one_event(json_path):
 
     qwen_text = ""
 
-    if qwen_log_path and os.path.exists(qwen_log_path):
-        with open(qwen_log_path, "r", encoding="utf-8", errors="ignore") as f:
+    qwen_log_file = resolve_project_path(qwen_log_path) if qwen_log_path else None
+    if qwen_log_file and qwen_log_file.exists():
+        with qwen_log_file.open("r", encoding="utf-8", errors="ignore") as f:
             raw_text = f.read()
         qwen_text = clean_qwen_log(raw_text)
 
@@ -177,7 +183,7 @@ def enhance_one_event(json_path):
     event["qwen_summary"] = qwen_summary
     event["qwen_analysis_cleaned"] = qwen_text[:1500]
 
-    with open(json_path, "w", encoding="utf-8") as f:
+    with json_path.open("w", encoding="utf-8") as f:
         json.dump(event, f, ensure_ascii=False, indent=2)
 
     return json_path
@@ -188,7 +194,8 @@ def main():
     parser.add_argument("--event-json-dir", default="outputs/event_json")
     args = parser.parse_args()
 
-    json_files = sorted(glob.glob(os.path.join(args.event_json_dir, "event_*.json")))
+    event_json_dir = resolve_project_path(args.event_json_dir)
+    json_files = sorted(event_json_dir.glob("event_*.json"))
 
     if not json_files:
         print(f"未找到事件 JSON：{args.event_json_dir}")

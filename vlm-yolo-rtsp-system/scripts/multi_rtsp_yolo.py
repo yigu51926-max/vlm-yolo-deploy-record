@@ -1,9 +1,15 @@
 import os
+from pathlib import Path
 import cv2
 import time
 import argparse
 from urllib.parse import urlparse
 from ultralytics import YOLO
+
+try:
+    from .project_paths import PROJECT_ROOT, resolve_project_path
+except ImportError:
+    from project_paths import PROJECT_ROOT, resolve_project_path
 
 
 def stream_name(url: str) -> str:
@@ -40,23 +46,25 @@ def main():
         ],
         help="多路RTSP地址"
     )
-    parser.add_argument("--model", default="/home/lee-server/yolov8/yolo26n.pt")
-    parser.add_argument("--output-dir", default="/home/lee-server/vlm-yolo-rtsp-system/outputs/docker_multi_rtsp")
+    parser.add_argument("--model", default=os.environ.get("YOLO_MODEL_PATH", str(PROJECT_ROOT / "models" / "yolo26n.pt")))
+    parser.add_argument("--output-dir", default=str(PROJECT_ROOT / "outputs" / "docker_multi_rtsp"))
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--max-frames", type=int, default=300)
     args = parser.parse_args()
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    output_dir = resolve_project_path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 80)
     print("[启动] 多路 RTSP YOLO26 检测")
-    print(f"[模型] {args.model}")
+    model_path = resolve_project_path(args.model)
+    print(f"[模型] {model_path}")
     print(f"[推理尺寸] imgsz={args.imgsz}")
     print(f"[路数] {len(args.sources)}")
     print("=" * 80)
 
-    model = YOLO(args.model)
+    model = YOLO(str(model_path))
 
     caps = []
     writers = []
@@ -69,8 +77,8 @@ def main():
         name = stream_name(source)
         cap, width, height, fps = open_capture(source)
 
-        output_path = os.path.join(args.output_dir, f"{name}_detect.mp4")
-        writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        output_path = output_dir / f"{name}_detect.mp4"
+        writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
 
         if not writer.isOpened():
             raise RuntimeError(f"无法创建输出视频：{output_path}")
@@ -143,7 +151,7 @@ def main():
     print(f"[总平均FPS] {total_fps:.2f}")
     for i, name in enumerate(names):
         print(f"[{name}] 帧数={counts[i]}, 平均FPS={counts[i] / elapsed:.2f}")
-    print(f"[输出目录] {args.output_dir}")
+    print(f"[输出目录] {output_dir}")
     print("=" * 80)
 
 

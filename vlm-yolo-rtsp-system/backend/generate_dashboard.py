@@ -27,7 +27,7 @@ def image_path(keyframe_path):
 def load_events():
     events = []
     for path in sorted(EVENT_DIR.glob("event_*.json")):
-        with open(path, "r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         data["_json_name"] = path.name
         events.append(data)

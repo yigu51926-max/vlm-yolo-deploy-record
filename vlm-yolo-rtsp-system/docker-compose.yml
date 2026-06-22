@@ -9,15 +9,19 @@ services:
     image: vlm-yolo-collab:0.1
     container_name: vlm-yolo-event
     network_mode: host
-    working_dir: /home/lee-server/vlm-yolo-rtsp-system
+    working_dir: /workspace/project
     environment:
       YOLO_CONFIG_DIR: /tmp/Ultralytics
       OPENCV_FFMPEG_CAPTURE_OPTIONS: rtsp_transport;tcp
+      YOLO_MODEL_PATH: /models/yolo26n.pt
+      LLAMA_CLI_PATH: /opt/llama.cpp/build/bin/llama-cli
+      QWEN_MODEL_PATH: /models/qwen/Qwen3VL-2B-Instruct-Q4_K_M.gguf
+      QWEN_MMPROJ_PATH: /models/qwen/mmproj-Qwen3VL-2B-Instruct-F16.gguf
     volumes:
-      - /home/lee-server/vlm-yolo-rtsp-system:/home/lee-server/vlm-yolo-rtsp-system
-      - /home/lee-server/yolov8:/home/lee-server/yolov8
-      - /home/lee-server/llama.cpp:/home/lee-server/llama.cpp
-      - /home/lee-server/.cache/modelscope:/home/lee-server/.cache/modelscope
+      - .:/workspace/project
+      - ${YOLO_MODEL_DIR:-./models}:/models:ro
+      - ${LLAMA_CPP_DIR:-./vendor/llama.cpp}:/opt/llama.cpp:ro
+      - ${QWEN_MODEL_DIR:-./models/qwen}:/models/qwen:ro
     command: bash -lc "python scripts/yolo_qwen_event_json_demo.py"
     profiles:
       - event

@@ -1,16 +1,22 @@
-import os
 import cv2
 import json
 import time
 import argparse
 import subprocess
 from datetime import datetime
+from pathlib import Path
 from ultralytics import YOLO
+
+try:
+    from .project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
+except ImportError:
+    from project_paths import PROJECT_ROOT, resolve_config_paths, resolve_project_path
 
 
 def load_config(config_path):
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    path = resolve_project_path(config_path)
+    with path.open("r", encoding="utf-8") as f:
+        return resolve_config_paths(json.load(f))
 
 
 def open_capture(source):
@@ -66,16 +72,17 @@ def should_trigger(result, model, target_class, conf_threshold):
 
 
 def save_keyframe(frame, result, keyframe_dir, stream_name, event_id):
-    os.makedirs(keyframe_dir, exist_ok=True)
+    keyframe_dir = Path(keyframe_dir)
+    keyframe_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{event_id}_{stream_name}_{timestamp}.jpg"
-    path = os.path.join(keyframe_dir, filename)
+    path = keyframe_dir / filename
 
     plotted = result.plot()
-    cv2.imwrite(path, plotted)
+    cv2.imwrite(str(path), plotted)
 
-    return path
+    return str(path)
 
 
 def call_qwen(config_path, image_path, detect_info):
@@ -94,7 +101,7 @@ def call_qwen(config_path, image_path, detect_info):
 
     process = subprocess.run(
         cmd,
-        cwd="/home/lee-server/vlm-yolo-rtsp-system"
+        cwd=PROJECT_ROOT
     )
 
     return process.returncode

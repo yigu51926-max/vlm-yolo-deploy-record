@@ -48,15 +48,15 @@ docker/yolo-collab/
 
 容器挂载宿主机项目目录：
 
-/home/lee-server/vlm-yolo-rtsp-system:/workspace/vlm-yolo-rtsp-system
+${PROJECT_ROOT}:/workspace/project
 
 容器挂载 YOLO 模型目录：
 
-/home/lee-server/yolov8:/workspace/yolov8
+${YOLO_MODEL_DIR}:/models:ro
 
 容器运行目录：
 
-/workspace/vlm-yolo-rtsp-system
+/workspace/project
 
 ## 五、第一阶段验证指标
 

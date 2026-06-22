@@ -65,7 +65,7 @@ def clean_text(text: str) -> str:
 
 
 def clean_event_json(path: Path):
-    with open(path, "r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     raw = ""
@@ -91,7 +91,7 @@ def clean_event_json(path: Path):
 
     data["qwen_summary"] = cleaned
 
-    with open(path, "w", encoding="utf-8") as f:
+    with path.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     return cleaned
