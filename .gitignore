@@ -39,3 +39,6 @@ id_ed25519
 
 # System
 .DS_Store
+
+# Server runtime data symlink
+vlm-yolo-rtsp-system/outputs
