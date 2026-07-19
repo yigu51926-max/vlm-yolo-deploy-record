@@ -198,7 +198,51 @@ class EventHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_image(self, path: Path) -> None:
+        data = path.read_bytes()
+
+        self.send_response(200)
+        self.send_header(
+            "Content-Type",
+            "image/jpeg",
+        )
+        self.send_header(
+            "Content-Length",
+            str(len(data)),
+        )
+        self.end_headers()
+
+        self.wfile.write(data)
+
     def do_GET(self) -> None:
+        if self.path.startswith("/images/"):
+            relative_path = self.path[len("/images/"):]
+
+            image_path = (EVENT_DIR / relative_path).resolve()
+
+            try:
+                image_path.relative_to(EVENT_DIR)
+            except ValueError:
+                self.send_json(
+                    403,
+                    {
+                        "error": "forbidden"
+                    },
+                )
+                return
+
+            if not image_path.exists():
+                self.send_json(
+                    404,
+                    {
+                        "error": "image not found"
+                    },
+                )
+                return
+
+            self.send_image(image_path)
+            return
+
         if self.path == "/health":
             self.send_json(
                 200,
