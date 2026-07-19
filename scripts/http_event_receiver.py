@@ -212,7 +212,111 @@ class EventHandler(BaseHTTPRequestHandler):
             )
             return
 
-        self.send_json(404, {"error": "not found"})
+        if self.path == "/events":
+            events_file = EVENT_DIR / "events.jsonl"
+
+            events = []
+
+            if events_file.exists():
+                with events_file.open(
+                    "r",
+                    encoding="utf-8",
+                ) as f:
+                    for line in f:
+                        line = line.strip()
+
+                        if not line:
+                            continue
+
+                        try:
+                            events.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+
+            self.send_json(
+                200,
+                {
+                    "count": len(events),
+                    "events": events[-100:],
+                },
+            )
+            return
+
+        if self.path.startswith("/events/"):
+            message_id = self.path[len("/events/"):]
+
+            events_file = EVENT_DIR / "events.jsonl"
+
+            if not events_file.exists():
+                self.send_json(
+                    404,
+                    {
+                        "error": "event not found"
+                    },
+                )
+                return
+
+            event_file = None
+
+            with events_file.open(
+                "r",
+                encoding="utf-8",
+            ) as f:
+                for line in f:
+                    line = line.strip()
+
+                    if not line:
+                        continue
+
+                    try:
+                        item = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    if item.get("messageId") == message_id:
+                        event_file = item.get("eventFile")
+                        break
+
+            if not event_file:
+                self.send_json(
+                    404,
+                    {
+                        "error": "event not found",
+                        "messageId": message_id,
+                    },
+                )
+                return
+
+            event_path = EVENT_DIR / event_file
+
+            if not event_path.exists():
+                self.send_json(
+                    404,
+                    {
+                        "error": "event file missing",
+                        "path": event_file,
+                    },
+                )
+                return
+
+            with event_path.open(
+                "r",
+                encoding="utf-8",
+            ) as f:
+                event = json.load(f)
+
+            self.send_json(
+                200,
+                event,
+            )
+            return
+
+        self.send_json(
+            404,
+            {
+                "error": "not found"
+            },
+        )
 
     def do_POST(self) -> None:
         if self.path != "/events":
